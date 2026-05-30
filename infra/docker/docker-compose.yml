@@ -62,7 +62,7 @@ services:
       retries: 10
 
   zookeeper:
-    image: bitnami/zookeeper:${ZOOKEEPER_IMAGE_TAG}
+    image: zookeeper:${ZOOKEEPER_IMAGE_TAG}
     ports:
       - "${ZOOKEEPER_PORT}:2181"
     environment:
@@ -71,7 +71,7 @@ services:
       - zookeeper_data:/bitnami/zookeeper
 
   kafka:
-    image: bitnami/kafka:${KAFKA_IMAGE_TAG}
+    image: apache/kafka:${KAFKA_IMAGE_TAG}
     ports:
       - "${KAFKA_HOST_PORT}:9094"
     environment:
@@ -110,13 +110,9 @@ services:
       retries: 3
 
   spark-master:
-    image: bitnami/spark:${SPARK_IMAGE_TAG}
+    image: apache/spark:${SPARK_IMAGE_TAG}
     environment:
       SPARK_MODE: master
-      SPARK_RPC_AUTHENTICATION_ENABLED: no
-      SPARK_RPC_ENCRYPTION_ENABLED: no
-      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: no
-      SPARK_SSL_ENABLED: no
     ports:
       - "${SPARK_MASTER_UI_PORT}:8080"  # Spark master UI
       - "${SPARK_MASTER_PORT}:7077"  # Spark master port
@@ -124,24 +120,22 @@ services:
     volumes:
       - spark_master_data:/opt/spark-data
       - ../../data:/data
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark-master", "--port", "7077", "--webui-port", "8080"]
 
   spark-worker:
-    image: bitnami/spark:${SPARK_IMAGE_TAG}
+    image: apache/spark:${SPARK_IMAGE_TAG}
     environment:
       SPARK_MODE: worker
       SPARK_MASTER_URL: spark://spark-master:7077
       SPARK_WORKER_MEMORY: 2G
       SPARK_WORKER_CORES: 2
-      SPARK_RPC_AUTHENTICATION_ENABLED: no
-      SPARK_RPC_ENCRYPTION_ENABLED: no
-      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: no
-      SPARK_SSL_ENABLED: no
     ports:
       - "${SPARK_WORKER_UI_PORT}:8081"  # Spark worker UI
     depends_on:
       - spark-master
     volumes:
       - ../../data:/data
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077", "--webui-port", "8081"]
 
 volumes:
   mysql_data:

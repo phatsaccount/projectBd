@@ -1,201 +1,183 @@
 ---
 title: "Movie Recommendation Platform Plan"
-description: "Phased roadmap to deliver data pipelines, models, and API services."
+description: "Lean phased roadmap for a demo-grade end-to-end system."
 status: pending
 priority: P2
-effort: 160h
+effort: 120h
 branch: main
 tags: [plan, roadmap, backend, data, infra]
 created: 2026-05-29
 ---
 
 # Overview
-This plan delivers an end-to-end movie search and recommendation platform: batch and streaming pipelines, model training, and an API service with search and recommendations.
+This plan delivers a lean, end-to-end demo: ingestion -> batch ETL -> search -> model -> streaming events -> recommendation serving. It is optimized for a university capstone scope while keeping the architecture clean.
 
 # Assumptions
 - The current repo structure and core components (API, batch jobs, streaming jobs, infra) remain in place.
 - Development is local-first with Docker Compose for infra dependencies.
 - Data sources are MovieLens CSVs and user events arriving via Kafka.
+- Scope targets demo-level functionality; advanced MLOps and enterprise features are excluded.
 
 # Scope
 In scope:
+- Local infra via Docker Compose
+- Data ingestion and baseline schema
 - Batch ETL and feature pipeline
-- Streaming updates for user signals
+- Search index and Search API
 - Model training and offline evaluation
-- API for search and recommendations
-- Infra setup, observability, and release criteria
+- Event streaming and recommendation serving (minimal, demo-grade)
+- Basic tests and local runbook
 
 Out of scope:
-- Full UI or frontend experience
+- UI or frontend experience
 - Mobile clients
-- Multi-tenant or enterprise auth
-- Production-scale multi-region deployment
+- Production multi-region deployment
+- Advanced MLOps (A/B test, online learning)
+- Enterprise auth/SSO
+- Cost optimization/FinOps
 
 # Data Flow (Explicit)
-1. Raw data -> object storage -> batch ETL -> cleaned data -> feature store -> model artifacts.
-2. User events -> Kafka -> streaming jobs -> user profile state -> cache/index -> API responses.
-3. API requests -> cache lookup -> search/index query -> fallback to persistence/model output.
+1. Raw CSV -> storage -> schema validation.
+2. Batch ETL -> cleaned data -> feature tables -> model artifacts.
+3. Search index built from cleaned data -> Search API responses.
+4. User events -> Kafka -> streaming job -> cache/state -> Recommendation API responses.
 
 # Dependency Graph
 - Phase 0 blocks all other phases.
-- Phase 1 blocks Phase 2 and Phase 4.
-- Phase 2 blocks Phase 4 and Phase 5.
+- Phase 1 blocks Phase 2 and Phase 3.
+- Phase 2 blocks Phase 3 and Phase 4.
 - Phase 3 blocks Phase 5.
 - Phase 4 blocks Phase 5.
-- Phase 5 blocks Phase 7.
-- Phase 6 can run in parallel after Phase 0.
 
 # Phases
-## Phase 0: Foundations and Environment (12h)
+## Phase 0: Foundations and Environment (10h)
 Dependencies: none
 Ownership: Infra/DevOps
 Deliverables:
-- Local development environment stable
-- Shared config and secrets strategy documented
+- Docker Compose baseline with pinned versions
+- Env template for local development
+- Health checks and local runbook
 Success criteria:
-- One-command local boot passes health checks
+- One-command local boot brings services up
+- Health endpoints respond without manual fixes
+- Local runbook validated from a clean clone
 Risks (L/M/H):
 - Version drift across services (M) -> pin versions and document
+- Port conflicts on developer machines (M) -> provide defaults and overrides
 Tests:
 - Infra smoke tests (container health)
 Rollback:
 - Revert to last known working compose config
 
-## Phase 1: Data Ingestion and Storage (24h)
+## Phase 1: Data Ingestion and Baseline Schema (14h)
 Dependencies: Phase 0
 Ownership: Data Engineering
 Deliverables:
 - Raw data ingest to storage
-- Baseline schemas for cleaned data
+- Baseline schemas documented and validated
+- Basic data sanity checks (missing ids, duplicates)
 Success criteria:
-- 100% of raw files ingested
-- Schema validation passes with <1% nulls on required fields
+- Raw datasets load consistently end-to-end
+- Schema is stable and usable by Spark jobs
+- Bad rows are handled or reported
 Risks (L/M/H):
-- Schema mismatches (M) -> strict schema checks and fallbacks
+- Schema mismatches (M) -> strict parsing with fallback rules
 Tests:
 - Unit tests for parsers
-- Integration tests against storage
+- Sample ingest run on a small dataset
 Rollback:
 - Keep prior raw data snapshot and revert to last schema
 
-## Phase 2: Batch ETL and Feature Pipeline (24h)
+## Phase 2: Batch ETL and Feature Pipeline (18h)
 Dependencies: Phase 1
 Ownership: Data Engineering
 Deliverables:
 - Cleaned datasets and feature tables
-- Reproducible batch jobs
+- Reproducible batch job scripts
 Success criteria:
-- Batch job completes within target time budget
-- Feature completeness > 98%
+- Batch jobs rerun with consistent outputs
+- Feature tables are usable for training and indexing
 Risks (L/M/H):
-- Data quality regressions (M) -> data quality checks and alerts
+- Data quality regressions (M) -> add validation checkpoints
 Tests:
 - Unit tests for transformations
-- Integration tests for batch runs on sample data
+- Integration run on sample data
 Rollback:
-- Retain previous features and revert model training to prior run
+- Retain previous cleaned/features output and revert
 
-## Phase 3: Streaming Pipeline for User Events (16h)
-Dependencies: Phase 0
-Ownership: Data Engineering
-Deliverables:
-- Kafka consumer jobs
-- User profile updates stored in cache or persistence
-Success criteria:
-- Event lag < 30s under expected load
-Risks (L/M/H):
-- Message loss or duplication (H) -> idempotent processing
-Tests:
-- Integration tests with local Kafka
-Rollback:
-- Disable streaming updates and rely on batch recompute
-
-## Phase 4: Model Training and Evaluation (28h)
+## Phase 3: Search Index and API Skeleton (18h)
 Dependencies: Phase 1, Phase 2
-Ownership: ML Engineering
-Deliverables:
-- Baseline recommendation model
-- Offline evaluation report
-Success criteria:
-- Baseline metrics met (define recall@K, NDCG@K)
-Risks (L/M/H):
-- Model underperforms (M) -> iterate features and algorithm
-Tests:
-- Unit tests for training pipeline
-- Reproducibility checks
-Rollback:
-- Keep previous model artifacts and metrics
-
-## Phase 5: API Service and Serving Integration (24h)
-Dependencies: Phase 2, Phase 3, Phase 4
 Ownership: Backend
 Deliverables:
-- Search API
-- Recommendation API
+- ES mapping and index build script
+- Search API and movie detail endpoint
+- Basic request/response schemas
+Success criteria:
+- Search returns relevant results on sample queries
+- API handles empty or missing cases gracefully
+Risks (L/M/H):
+- Mapping mismatch (M) -> iterate mapping with small dataset
+- Query relevance issues (M) -> tune fields and analyzers
+Tests:
+- Integration test with sample index
+- API contract tests for core endpoints
+Rollback:
+- Revert index mapping and routes to last known working state
+
+## Phase 4: Model Training and Offline Evaluation (20h)
+Dependencies: Phase 2
+Ownership: ML Engineering
+Deliverables:
+- Baseline recommendation model artifact
+- Offline evaluation summary (qualitative)
+Success criteria:
+- Training runs end-to-end without manual fixes
+- Evaluation summary is recorded and repeatable
+- Model artifacts are stored and versioned
+Risks (L/M/H):
+- Weak baseline quality (M) -> iterate features or algorithm choice
+Tests:
+- Unit tests for training utilities
+- Reproducibility check on small subset
+Rollback:
+- Keep previous model artifacts and evaluation notes
+
+## Phase 5: Streaming Events and Recommendation Serving (20h)
+Dependencies: Phase 3, Phase 4
+Ownership: Backend + Data Engineering
+Deliverables:
 - Event ingestion API
+- Kafka consumer/streaming job
+- Cache or state updates for recommendations
+- Recommendation API (uses cache/model output)
 Success criteria:
-- p95 latency < 200ms for search and recommendations
-- 99% success rate in load test at target QPS
+- Demo shows events can change recommendation output
+- System continues to serve baseline results if streaming is off
 Risks (L/M/H):
-- Cache inconsistency (M) -> cache invalidation strategy
+- Event duplication (M) -> idempotent processing
+- Cache inconsistency (M) -> clear refresh strategy
 Tests:
-- Unit tests for use cases
-- Integration tests for cache/index/database
-- E2E tests for key endpoints
+- Integration tests with local Kafka
+- End-to-end demo script for event -> recommendation
 Rollback:
-- Feature flags to disable new endpoints or switch to baseline responses
-
-## Phase 6: Infrastructure and Deployment (20h)
-Dependencies: Phase 0
-Ownership: Infra/DevOps
-Deliverables:
-- Docker Compose baseline
-- Environment configs for local and staging
-Success criteria:
-- Staging environment mirrors local setup
-Risks (L/M/H):
-- Config drift (M) -> env template and validation
-Tests:
-- Deploy smoke tests
-Rollback:
-- Redeploy last known good images and configs
-
-## Phase 7: Observability, QA, and Release (12h)
-Dependencies: Phase 5
-Ownership: QA + Backend
-Deliverables:
-- Logging, metrics, dashboards
-- Release checklist
-Success criteria:
-- Alerting on error rate, latency, and pipeline failures
-Risks (L/M/H):
-- Missing telemetry (M) -> instrumentation review
-Tests:
-- Load tests
-- Failure injection on pipeline jobs
-Rollback:
-- Roll back release tags and disable alert rules if noisy
+- Disable streaming and serve static model results
 
 # Backwards Compatibility Strategy
-- Version data schemas and keep readers compatible with N-1 format.
-- Keep previous model artifacts for rollback.
-- Maintain API response compatibility for existing clients.
+- Version data schemas and keep N-1 compatibility where feasible.
+- Keep previous model artifacts and index mappings for rollback.
+- Maintain stable API responses for demo clients.
 
 # Test Matrix
-- Unit: domain logic, transformations, model utilities
-- Integration: storage connectors, search index, cache, Kafka
-- E2E: key API flows (search, recommend, events)
-- Performance: latency and throughput for API endpoints
-- Reliability: pipeline failure recovery and idempotency
+- Unit: parsers, transformations, model utilities
+- Integration: storage connectors, search index, Kafka consumer
+- E2E: search flow, recommend flow with events
 
 # Success Criteria (Global)
-- Batch pipeline completes within agreed SLA.
-- Streaming pipeline lag stays under target.
-- API p95 latency and error rate meet targets.
-- Model evaluation metrics meet baseline.
-- All release checklist items pass.
+- End-to-end demo runs from data -> search -> recommend.
+- Local boot is reliable with a single command.
+- Core APIs return consistent responses on sample data.
 
 # Open Questions
-- Target SLAs for batch and streaming jobs
-- Baseline metrics and thresholds for the recommendation model
-- Expected peak QPS for API endpoints
+- Target dataset size for the demo run?
+- Minimum acceptable recommendation quality (described in words)?
+- Do we need a scripted demo scenario for presentation?
