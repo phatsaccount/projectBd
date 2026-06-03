@@ -42,7 +42,7 @@ def _repo_root() -> Path:
 
 def _default_paths() -> dict:
     root = _repo_root()
-    data_raw = root / "data" / "raw"
+    data_raw = _default_data_dir(root)
     output_dir = root / "data" / "models" / "phase04"
     return {
         "movies": data_raw / "movie.csv",
@@ -50,6 +50,14 @@ def _default_paths() -> dict:
         "tags": data_raw / "tag.csv",
         "output": output_dir,
     }
+
+
+def _default_data_dir(root: Path) -> Path:
+    required = ["movie.csv", "rating.csv", "tag.csv"]
+    for candidate in (root / "data" / "raw", root / "data" / "archive"):
+        if all((candidate / name).exists() for name in required):
+            return candidate
+    return root / "data" / "raw"
 
 
 def _parse_weights(args: argparse.Namespace) -> dict:

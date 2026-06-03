@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 from datetime import datetime
 import uuid
@@ -13,7 +13,8 @@ class TrackEventRequest(BaseModel):
     rating: Optional[int] = Field(None, ge=1, le=5, description="Rating (1-5) if event_type is 'rate'")
     timestamp: Optional[int] = Field(None, description="Unix timestamp; server fills if missing")
     
-    @validator('event_type')
+    @field_validator("event_type")
+    @classmethod
     def validate_event_type(cls, v):
         """Validate event_type is one of allowed values."""
         allowed = {'view', 'rate', 'bookmark', 'share'}
@@ -21,14 +22,14 @@ class TrackEventRequest(BaseModel):
             raise ValueError(f"event_type must be one of {allowed}, got {v}")
         return v
     
-    @validator('rating')
-    def validate_rating_with_event_type(cls, v, values):
+    @model_validator(mode="after")
+    def validate_rating_with_event_type(self):
         """Validate rating is provided when event_type is 'rate'."""
-        if 'event_type' in values and values['event_type'] == 'rate' and v is None:
+        if self.event_type == 'rate' and self.rating is None:
             raise ValueError("rating must be provided when event_type is 'rate'")
-        if 'event_type' in values and values['event_type'] != 'rate' and v is not None:
+        if self.event_type != 'rate' and self.rating is not None:
             raise ValueError("rating should not be provided when event_type is not 'rate'")
-        return v
+        return self
 
 
 class EventAckResponse(BaseModel):

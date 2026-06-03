@@ -88,13 +88,23 @@ def _resolve_paths():
         else:
             landing_base = _build_s3a_path(raw_bucket, landing_prefix)
     else:
-        raw_base = os.getenv("RAW_LOCAL_DIR", str(REPO_ROOT / "data" / "raw"))
+        raw_base = os.getenv("RAW_LOCAL_DIR", _default_raw_dir())
         landing_base = os.getenv(
             "LANDING_LOCAL_DIR", str(REPO_ROOT / "data" / "landing")
         )
         os.makedirs(landing_base, exist_ok=True)
 
     return raw_base, landing_base
+
+
+def _default_raw_dir():
+    raw_dir = REPO_ROOT / "data" / "raw"
+    archive_dir = REPO_ROOT / "data" / "archive"
+    if raw_dir.exists():
+        return str(raw_dir)
+    if archive_dir.exists():
+        return str(archive_dir)
+    return str(raw_dir)
 
 
 def _validate_header(spark, source_path, schema):

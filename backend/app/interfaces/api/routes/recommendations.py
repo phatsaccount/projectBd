@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 import logging
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -47,9 +48,18 @@ def initialize_recommendation_api(
     
     # Initialize artifact loader
     if artifacts_dir is None:
-        artifacts_dir = Path(__file__).resolve().parents[5] / "data" / "models" / "phase04"
+        artifacts_dir_env = os.getenv("PHASE04_ARTIFACTS_DIR", "").strip()
+        if artifacts_dir_env:
+            artifacts_dir = Path(artifacts_dir_env)
+        else:
+            artifacts_dir = Path(__file__).resolve().parents[5] / "data" / "models" / "phase04"
     
-    _artifact_loader = Phase4ArtifactLoader(artifacts_dir)
+    if artifacts_dir.exists():
+        _artifact_loader = Phase4ArtifactLoader(artifacts_dir)
+    else:
+        _artifact_loader = None
+        logger.warning("Phase 4 artifacts directory not found: %s", artifacts_dir)
+
     _ranker = RecommendationRanker(top_k=10)
     
     logger.info(f"Recommendation API initialized: artifacts_dir={artifacts_dir}")
@@ -146,10 +156,12 @@ def _compute_fallback_recommendations(user_id: int, k: int) -> list:
         
         # Convert to candidates format
         candidates = []
+        max_score = float(popularity_df["popularity_score"].max())
         for _, row in popularity_df.iterrows():
+            raw_score = float(row["popularity_score"])
             candidates.append({
                 "movie_id": int(row["movie_id"]),
-                "score": float(row["popularity_score"]),
+                "score": raw_score / max_score if max_score > 0 else 0.0,
                 "reason": "popularity",
             })
         

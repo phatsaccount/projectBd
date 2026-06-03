@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional, List, Tuple
 import numpy as np
 import pandas as pd
 
@@ -42,6 +42,13 @@ class Phase4ArtifactLoader:
                 return None
             
             df = pd.read_csv(path)
+            rename_map = {}
+            if "movie_id" not in df.columns and "movieId" in df.columns:
+                rename_map["movieId"] = "movie_id"
+            if "popularity_score" not in df.columns and "score_popularity" in df.columns:
+                rename_map["score_popularity"] = "popularity_score"
+            if rename_map:
+                df = df.rename(columns=rename_map)
             self._artifacts_cache["popularity"] = df
             logger.info(f"Loaded popularity: {len(df)} movies")
             return df
@@ -68,10 +75,13 @@ class Phase4ArtifactLoader:
             with open(path, "r") as f:
                 for line in f:
                     record = json.loads(line)
-                    movie_id = record["movie_id"]
-                    neighbors[movie_id] = [
-                        (int(n["neighbor_id"]), float(n["score"]))
+                    movie_id = record.get("movie_id", record.get("movieId"))
+                    if movie_id is None:
+                        continue
+                    neighbors[int(movie_id)] = [
+                        (int(n.get("neighbor_id", n.get("movieId"))), float(n["score"]))
                         for n in record.get("neighbors", [])
+                        if n.get("neighbor_id", n.get("movieId")) is not None
                     ]
             
             self._artifacts_cache["item_neighbors"] = neighbors
@@ -100,10 +110,13 @@ class Phase4ArtifactLoader:
             with open(path, "r") as f:
                 for line in f:
                     record = json.loads(line)
-                    user_id = record["user_id"]
-                    neighbors[user_id] = [
-                        (int(n["neighbor_id"]), float(n["score"]))
+                    user_id = record.get("user_id", record.get("userId"))
+                    if user_id is None:
+                        continue
+                    neighbors[int(user_id)] = [
+                        (int(n.get("neighbor_id", n.get("userId"))), float(n["score"]))
                         for n in record.get("neighbors", [])
+                        if n.get("neighbor_id", n.get("userId")) is not None
                     ]
             
             self._artifacts_cache["user_neighbors"] = neighbors
@@ -154,8 +167,10 @@ class Phase4ArtifactLoader:
             with open(path, "r") as f:
                 mapping = json.load(f)
             
-            # Convert string keys to int
-            mapping = {int(k): v for k, v in mapping.items()}
+            if isinstance(mapping, list):
+                mapping = {idx: int(movie_id) for idx, movie_id in enumerate(mapping)}
+            else:
+                mapping = {int(k): int(v) for k, v in mapping.items()}
             self._artifacts_cache["content_movie_ids"] = mapping
             logger.info(f"Loaded content movie IDs: {len(mapping)} mappings")
             return mapping
@@ -163,7 +178,7 @@ class Phase4ArtifactLoader:
             logger.error(f"Error loading content movie IDs: {e}")
             return {}
     
-    def load_all_artifacts(self) -> Dict[str, any]:
+    def load_all_artifacts(self) -> Dict[str, Any]:
         """Load all Phase 4 artifacts.
         
         Returns:
