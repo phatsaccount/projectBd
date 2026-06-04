@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from backend.app.interfaces.api.routes import search, events, recommendations
 from backend.app.interfaces.api.routes.events import initialize_producer
 from backend.app.interfaces.api.routes.recommendations import initialize_recommendation_api
+from backend.app.interfaces.api.metrics import PrometheusMiddleware, metrics_response
 from backend.app.infrastructure.redis.client import initialize_redis
 from backend.app.infrastructure.redis.recommendation_cache import initialize_recommendation_cache
 import logging
@@ -10,6 +12,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Movie Recommendation API")
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=[
+		"http://localhost:5173",
+		"http://127.0.0.1:5173",
+	],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+)
+app.add_middleware(PrometheusMiddleware)
 
 
 @app.on_event("startup")
@@ -37,6 +50,11 @@ def startup_event():
 @app.get("/health")
 def health() -> dict:
 	return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+	return metrics_response()
 
 
 app.include_router(search.router)

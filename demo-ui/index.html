@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Movie Demo - Search and Recommendations</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Movie Recommendation Platform</p>
+        <div class="hero-grid">
+          <div>
+            <h1>Search movies, inspect details, and demo recommendations.</h1>
+            <p class="hero-copy">
+              A lightweight local UI for showing the full flow from search to
+              recommendations and event tracking.
+            </p>
+          </div>
+          <div class="api-card">
+            <label for="apiBaseUrl">API Base URL</label>
+            <input id="apiBaseUrl" type="url" value="http://localhost:8000" />
+            <p>Static UI: <strong>http://localhost:5173</strong></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls-grid">
+        <form id="searchForm" class="panel">
+          <div class="panel-heading">
+            <p class="section-kicker">Search</p>
+            <h2>Find movies</h2>
+          </div>
+          <label for="query">Query</label>
+          <input id="query" name="query" type="search" value="Toy Story" placeholder="Toy Story" />
+          <div class="inline-fields">
+            <div>
+              <label for="page">Page</label>
+              <input id="page" name="page" type="number" min="1" value="1" />
+            </div>
+            <div>
+              <label for="size">Size</label>
+              <input id="size" name="size" type="number" min="1" max="50" value="10" />
+            </div>
+          </div>
+          <button type="submit">Search movies</button>
+        </form>
+
+        <form id="recommendationForm" class="panel accent-panel">
+          <div class="panel-heading">
+            <p class="section-kicker">Recommend</p>
+            <h2>User recommendations</h2>
+          </div>
+          <label for="userId">User ID</label>
+          <input id="userId" name="userId" type="number" min="1" value="1" />
+          <label for="recommendationCount">Number of movies</label>
+          <input id="recommendationCount" name="recommendationCount" type="number" min="1" max="20" value="10" />
+          <button type="submit">Load recommendations</button>
+        </form>
+      </section>
+
+      <section id="status" class="status" aria-live="polite"></section>
+
+      <section class="content-grid">
+        <section class="results-column">
+          <div class="section-title">
+            <div>
+              <p class="section-kicker">Results</p>
+              <h2>Search results</h2>
+            </div>
+            <span id="searchTotal" class="pill">0 movies</span>
+          </div>
+          <div id="searchResults" class="movie-grid empty-state">
+            Search for a movie to begin the demo.
+          </div>
+        </section>
+
+        <aside class="detail-column">
+          <div class="section-title">
+            <div>
+              <p class="section-kicker">Selected</p>
+              <h2>Movie detail</h2>
+            </div>
+          </div>
+          <div id="movieDetail" class="detail-card empty-state">
+            Select a movie card to load details.
+          </div>
+        </aside>
+      </section>
+
+      <section class="recommendations-section">
+        <div class="section-title">
+          <div>
+            <p class="section-kicker">Personalized</p>
+            <h2>Recommendations</h2>
+          </div>
+          <span id="recommendationMeta" class="pill">No recommendations yet</span>
+        </div>
+        <div id="recommendationResults" class="recommendation-list empty-state">
+          Enter a user ID and load recommendations.
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,47 @@
+groups:
+  - name: projectbd-observability
+    rules:
+      - alert: BackendApiDown
+        expr: up{job="backend-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Backend API target is down
+          description: Prometheus cannot scrape the backend API /metrics endpoint.
+
+      - alert: DataQualityExporterDown
+        expr: up{job="data-quality"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Data quality exporter is down
+          description: Prometheus cannot scrape validation and quality report metrics.
+
+      - alert: ValidationReportHasErrors
+        expr: data_quality_report_error{report="validation"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Validation report contains dataset errors
+          description: One or more datasets failed validation or could not be read.
+
+      - alert: QualityReportHasErrors
+        expr: data_quality_report_error{report="quality"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Quality report contains dataset errors
+          description: One or more datasets failed quality checks or could not be read.
+
+      - alert: BackendHighErrorRate
+        expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Backend API is returning 5xx responses
+          description: At least one backend route is returning server errors.
