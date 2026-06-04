@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   api:
     build:
@@ -15,6 +21,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   prometheus:
     image: prom/prometheus:${PROMETHEUS_IMAGE_TAG}
@@ -37,6 +44,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   grafana:
     image: grafana/grafana:${GRAFANA_IMAGE_TAG}
@@ -57,6 +65,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   data-quality-exporter:
     image: python:3.11.9-slim
@@ -71,6 +80,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   mysql:
     image: mysql:${MYSQL_IMAGE_TAG}
@@ -88,6 +98,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   redis:
     image: redis:${REDIS_IMAGE_TAG}
@@ -100,6 +111,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_IMAGE_TAG}
@@ -116,6 +128,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   zookeeper:
     image: zookeeper:${ZOOKEEPER_IMAGE_TAG}
@@ -125,6 +138,7 @@ services:
       ALLOW_ANONYMOUS_LOGIN: "yes"
     volumes:
       - zookeeper_data:/bitnami/zookeeper
+    logging: *default-logging
 
   kafka:
     image: apache/kafka:${KAFKA_IMAGE_TAG}
@@ -147,6 +161,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    logging: *default-logging
 
   minio:
     image: minio/minio:${MINIO_IMAGE_TAG}
@@ -165,6 +180,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    logging: *default-logging
 
   spark-master:
     image: apache/spark:${SPARK_IMAGE_TAG}
@@ -178,6 +194,7 @@ services:
       - spark_master_data:/opt/spark-data
       - ../../data:/data
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark-master", "--port", "7077", "--webui-port", "8080"]
+    logging: *default-logging
 
   spark-worker:
     image: apache/spark:${SPARK_IMAGE_TAG}
@@ -193,6 +210,7 @@ services:
     volumes:
       - ../../data:/data
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077", "--webui-port", "8081"]
+    logging: *default-logging
 
   # Airflow Services
   airflow-postgres:
@@ -211,6 +229,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   airflow-redis:
     image: redis:7-alpine
@@ -222,6 +241,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   airflow-webserver:
     image: apache/airflow:2.8.0
@@ -253,6 +273,7 @@ services:
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/config:/opt/airflow/config
     command: webserver
+    logging: *default-logging
 
   airflow-scheduler:
     image: apache/airflow:2.8.0
@@ -278,6 +299,7 @@ services:
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/config:/opt/airflow/config
     command: scheduler
+    logging: *default-logging
 
   airflow-worker:
     image: apache/airflow:2.8.0
@@ -302,6 +324,7 @@ services:
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/config:/opt/airflow/config
     command: celery worker
+    logging: *default-logging
 
 volumes:
   mysql_data:
