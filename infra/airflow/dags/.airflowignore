@@ -1,0 +1,2 @@
+# Ignore utility files and folders so Airflow doesn't parse them as DAGs
+utils/

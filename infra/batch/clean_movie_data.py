@@ -5,8 +5,9 @@ from pyspark.sql import Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType
 
-SPARK_JOBS_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = SPARK_JOBS_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
+SPARK_JOBS_DIR = REPO_ROOT / "spark-jobs"
 sys.path.append(str(SPARK_JOBS_DIR))
 
 from common.schemas import dataset_names, get_schema

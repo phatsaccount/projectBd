@@ -4,3 +4,10 @@
 /docs/
 /plans/
 *.md
+venv/
+infra/docker/airflow/logs/
+# Bỏ qua các file biên dịch của Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

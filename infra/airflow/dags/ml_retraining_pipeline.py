@@ -156,7 +156,7 @@ with DAG(
     'ml_retraining_pipeline',
     default_args=default_args,
     description='Weekly ML model retraining and deployment',
-    schedule_interval='0 2 0 * *',  # Every Monday at 02:00 AM
+    schedule_interval='0 2 * * 1',  # Every Monday at 02:00 AM
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=['ml-ops', 'model-training', 'production'],
