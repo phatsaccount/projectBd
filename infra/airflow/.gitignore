@@ -1,0 +1,28 @@
+# Airflow logs and temporary files
+logs/
+*.log
+__pycache__/
+*.pyc
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Airflow database backups
+*.db
+*.db-*
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
