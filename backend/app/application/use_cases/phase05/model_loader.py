@@ -68,10 +68,13 @@ class Phase4ArtifactLoader:
             with open(path, "r") as f:
                 for line in f:
                     record = json.loads(line)
-                    movie_id = record["movie_id"]
+                    movie_id = record.get("movie_id", record.get("movieId"))
+                    if movie_id is None:
+                        continue
                     neighbors[movie_id] = [
-                        (int(n["neighbor_id"]), float(n["score"]))
+                        (int(n.get("neighbor_id", n.get("movie_id", n.get("movieId")))), float(n["score"]))
                         for n in record.get("neighbors", [])
+                        if n.get("neighbor_id", n.get("movie_id", n.get("movieId"))) is not None
                     ]
             
             self._artifacts_cache["item_neighbors"] = neighbors
@@ -100,10 +103,13 @@ class Phase4ArtifactLoader:
             with open(path, "r") as f:
                 for line in f:
                     record = json.loads(line)
-                    user_id = record["user_id"]
+                    user_id = record.get("user_id", record.get("userId"))
+                    if user_id is None:
+                        continue
                     neighbors[user_id] = [
-                        (int(n["neighbor_id"]), float(n["score"]))
+                        (int(n.get("neighbor_id", n.get("user_id", n.get("userId")))), float(n["score"]))
                         for n in record.get("neighbors", [])
+                        if n.get("neighbor_id", n.get("user_id", n.get("userId"))) is not None
                     ]
             
             self._artifacts_cache["user_neighbors"] = neighbors
@@ -152,10 +158,17 @@ class Phase4ArtifactLoader:
                 return {}
             
             with open(path, "r") as f:
-                mapping = json.load(f)
+                loaded = json.load(f)
             
-            # Convert string keys to int
-            mapping = {int(k): v for k, v in mapping.items()}
+            if isinstance(loaded, dict):
+                mapping = {int(k): int(v) for k, v in loaded.items()}
+            elif isinstance(loaded, list):
+                mapping = {idx: int(movie_id) for idx, movie_id in enumerate(loaded)}
+            else:
+                raise ValueError(
+                    f"Unsupported content movie IDs format: {type(loaded).__name__}"
+                )
+
             self._artifacts_cache["content_movie_ids"] = mapping
             logger.info(f"Loaded content movie IDs: {len(mapping)} mappings")
             return mapping

@@ -4,9 +4,11 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.types import LongType, MapType, StringType, StructField, StructType
 
-SPARK_JOBS_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = SPARK_JOBS_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
+SPARK_JOBS_DIR = REPO_ROOT / "spark-jobs"
 sys.path.append(str(SPARK_JOBS_DIR))
 
 from common.schemas import dataset_names
@@ -29,6 +31,16 @@ REQUIRED_COLUMNS = {
     "genome_scores": ["movieId", "tagId", "relevance"],
     "genome_tags": ["tagId", "tag"],
 }
+
+REPORT_SCHEMA = StructType(
+    [
+        StructField("dataset", StringType(), False),
+        StructField("rows", LongType(), False),
+        StructField("duplicate_keys", LongType(), False),
+        StructField("nulls", MapType(StringType(), LongType()), False),
+        StructField("error", StringType(), True),
+    ]
+)
 
 
 def _bool_env(name, default="false"):
@@ -166,7 +178,7 @@ def main():
             }
         )
 
-    report_df = spark.createDataFrame(records)
+    report_df = spark.createDataFrame(records, schema=REPORT_SCHEMA)
     report_df.coalesce(1).write.mode("overwrite").json(report_path)
 
     print("Validation report written to:", report_path)

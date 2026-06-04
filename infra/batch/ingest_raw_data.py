@@ -4,11 +4,15 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 
-SPARK_JOBS_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = SPARK_JOBS_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
+SPARK_JOBS_DIR = REPO_ROOT / "spark-jobs"
 sys.path.append(str(SPARK_JOBS_DIR))
 
 from common.schemas import dataset_names, get_filename, get_schema
+
+
+CSV_PARSE_MODE = os.getenv("CSV_PARSE_MODE", "PERMISSIVE")
 
 
 def _bool_env(name, default="false"):
@@ -83,12 +87,13 @@ def _resolve_paths():
     if raw_bucket:
         _validate_s3a_env()
         raw_base = _build_s3a_path(raw_bucket, raw_prefix)
-        if landing_bucket:
-            landing_base = _build_s3a_path(landing_bucket, landing_prefix)
-        else:
-            landing_base = _build_s3a_path(raw_bucket, landing_prefix)
     else:
         raw_base = os.getenv("RAW_LOCAL_DIR", str(REPO_ROOT / "data" / "raw"))
+
+    if landing_bucket:
+        _validate_s3a_env()
+        landing_base = _build_s3a_path(landing_bucket, landing_prefix)
+    else:
         landing_base = os.getenv(
             "LANDING_LOCAL_DIR", str(REPO_ROOT / "data" / "landing")
         )
@@ -98,13 +103,22 @@ def _resolve_paths():
 
 
 def _validate_header(spark, source_path, schema):
-    header_df = spark.read.option("header", "true").csv(source_path)
+    header_df = _csv_reader(spark).csv(source_path)
     expected = schema.fieldNames()
     if header_df.columns != expected:
         raise ValueError(
             "Header mismatch for "
             f"{source_path}. Expected {expected}, got {header_df.columns}"
         )
+
+
+def _csv_reader(spark):
+    return (
+        spark.read.option("header", "true")
+        .option("quote", '"')
+        .option("escape", '"')
+        .option("mode", CSV_PARSE_MODE)
+    )
 
 
 def main():
@@ -118,12 +132,7 @@ def main():
         target_path = _join_path(landing_base, dataset)
 
         _validate_header(spark, source_path, schema)
-        df = (
-            spark.read.option("header", "true")
-            .option("mode", "FAILFAST")
-            .schema(schema)
-            .csv(source_path)
-        )
+        df = _csv_reader(spark).schema(schema).csv(source_path)
 
         df.write.mode("overwrite").parquet(target_path)
         print(f"Ingested {dataset} -> {target_path}")

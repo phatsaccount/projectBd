@@ -144,12 +144,29 @@ def _compute_fallback_recommendations(user_id: int, k: int) -> list:
             logger.warning("No popularity data available")
             return []
         
-        # Convert to candidates format
+        movie_id_column = "movie_id" if "movie_id" in popularity_df.columns else "movieId"
+        score_column = (
+            "popularity_score"
+            if "popularity_score" in popularity_df.columns
+            else "score_popularity"
+        )
+        if movie_id_column not in popularity_df.columns or score_column not in popularity_df.columns:
+            logger.warning(
+                "Popularity artifact missing required columns: columns=%s",
+                list(popularity_df.columns),
+            )
+            return []
+
+        max_score = float(popularity_df[score_column].max() or 0.0)
+        if max_score <= 0:
+            return []
+
+        # Convert to candidates format expected by the serving schema.
         candidates = []
         for _, row in popularity_df.iterrows():
             candidates.append({
-                "movie_id": int(row["movie_id"]),
-                "score": float(row["popularity_score"]),
+                "movie_id": int(row[movie_id_column]),
+                "score": min(1.0, max(0.0, float(row[score_column]) / max_score)),
                 "reason": "popularity",
             })
         

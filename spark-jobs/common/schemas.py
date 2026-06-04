@@ -1,7 +1,6 @@
 from pyspark.sql.types import (
     DoubleType,
     IntegerType,
-    LongType,
     StringType,
     StructField,
     StructType,
@@ -20,7 +19,7 @@ RATINGS_SCHEMA = StructType(
         StructField("userId", IntegerType(), False),
         StructField("movieId", IntegerType(), False),
         StructField("rating", DoubleType(), False),
-        StructField("timestamp", LongType(), False),
+        StructField("timestamp", StringType(), False),
     ]
 )
 

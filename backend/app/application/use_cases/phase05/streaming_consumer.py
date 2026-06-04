@@ -281,14 +281,24 @@ class EventStreamingConsumer:
         
         try:
             # Normalize popularity scores to 0-1 range
-            max_pop = popularity_df["popularity_score"].max()
+            movie_id_column = "movie_id" if "movie_id" in popularity_df.columns else "movieId"
+            score_column = (
+                "popularity_score"
+                if "popularity_score" in popularity_df.columns
+                else "score_popularity"
+            )
+            if movie_id_column not in popularity_df.columns or score_column not in popularity_df.columns:
+                logger.warning("Popularity artifact columns not recognized: %s", list(popularity_df.columns))
+                return {}
+
+            max_pop = popularity_df[score_column].max()
             if max_pop <= 0:
                 return {}
             
             scores = {}
             for _, row in popularity_df.iterrows():
-                movie_id = int(row["movie_id"])
-                score = float(row["popularity_score"]) / max_pop
+                movie_id = int(row[movie_id_column])
+                score = float(row[score_column]) / max_pop
                 scores[movie_id] = score
             
             return scores

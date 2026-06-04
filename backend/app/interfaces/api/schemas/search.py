@@ -10,12 +10,12 @@ class SearchRequest(BaseModel):
 
 class MovieHit(BaseModel):
     movieId: int
-    title: Optional[str]
-    genres: Optional[str]
-    genres_list: Optional[List[str]]
-    rating_count: Optional[int]
-    rating_mean: Optional[float]
-    tag_list: Optional[List[str]]
+    title: Optional[str] = None
+    genres: Optional[str] = None
+    genres_list: Optional[List[str]] = None
+    rating_count: Optional[int] = None
+    rating_mean: Optional[float] = None
+    tag_list: Optional[List[str]] = None
 
 
 class SearchResponse(BaseModel):

@@ -3,8 +3,9 @@ from pathlib import Path
 
 from pyspark.sql import functions as F
 
-SPARK_JOBS_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = SPARK_JOBS_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
+SPARK_JOBS_DIR = REPO_ROOT / "spark-jobs"
 sys.path.append(str(SPARK_JOBS_DIR))
 
 from common.spark_session import build_spark_session, join_path, resolve_storage_base

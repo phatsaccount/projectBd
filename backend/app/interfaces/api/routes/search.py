@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
+import os
 
 from backend.app.interfaces.api.schemas.search import SearchResponse, MovieHit
 from backend.app.application.use_cases.search_movie import SearchMovieUseCase
@@ -16,7 +17,7 @@ router = APIRouter()
 def get_es_client():
     if Elasticsearch is None:
         raise RuntimeError("elasticsearch package not installed")
-    host = "http://localhost:9200"
+    host = os.getenv("ELASTICSEARCH_HOST", "http://localhost:9200")
     return Elasticsearch(host)
 
 
