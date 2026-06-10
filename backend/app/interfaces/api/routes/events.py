@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Depends
 import logging
+import os
 
 from backend.app.interfaces.api.schemas.events import (
     TrackEventRequest,
@@ -16,19 +17,28 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 # Global producer instance (initialized in main.py)
 _producer: EventProducer = None
+_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
 
 def get_producer() -> EventProducer:
     """Dependency: get the event producer."""
     global _producer
     if _producer is None:
-        raise RuntimeError("Event producer not initialized")
+        try:
+            initialize_producer(bootstrap_servers=_bootstrap_servers)
+        except Exception as exc:
+            logger.error("Event producer is not ready: %s", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Kafka producer is not ready. Check Kafka and retry.",
+            )
     return _producer
 
 
 def initialize_producer(bootstrap_servers: str = "localhost:9092") -> EventProducer:
     """Initialize the global event producer."""
-    global _producer
+    global _producer, _bootstrap_servers
+    _bootstrap_servers = bootstrap_servers
     _producer = EventProducer(bootstrap_servers=bootstrap_servers, topic="user-events")
     return _producer
 

@@ -19,6 +19,7 @@ class RecommendationResponse(BaseModel):
     total: int = Field(..., description="Total number of recommendations")
     cached: bool = Field(..., description="Whether result was from cache")
     timestamp: int = Field(..., description="Server timestamp")
+    computed_at: Optional[int] = Field(None, description="Cache computation timestamp when available")
 
 
 class RecommendationErrorResponse(BaseModel):

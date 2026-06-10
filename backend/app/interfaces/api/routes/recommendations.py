@@ -83,6 +83,7 @@ def get_recommendations(
         
         timestamp = int(datetime.utcnow().timestamp())
         cached = False
+        computed_at = None
         recommendations = []
         
         # Try to get from cache
@@ -92,6 +93,7 @@ def get_recommendations(
             # Cache hit: use cached recommendations
             cached = True
             candidates = cached_data.get("candidates", [])
+            computed_at = cached_data.get("computed_at")
             logger.debug(f"Cache hit for user {user_id}: {len(candidates)} candidates")
         else:
             # Cache miss: compute from Phase 4 artifacts (fallback)
@@ -114,6 +116,7 @@ def get_recommendations(
             total=len(recommendations),
             cached=cached,
             timestamp=timestamp,
+            computed_at=computed_at,
         )
         
     except HTTPException:

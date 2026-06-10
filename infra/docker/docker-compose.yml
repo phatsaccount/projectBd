@@ -18,10 +18,14 @@ services:
       REDIS_PORT: "6379"
       PHASE04_ARTIFACTS_DIR: "/app/data/models/phase04"
     depends_on:
-      - mysql
-      - redis
-      - elasticsearch
-      - kafka
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     volumes:
       - ../../data:/app/data:ro
     healthcheck:
@@ -29,6 +33,36 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
+
+  realtime-consumer:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    command:
+      - "python"
+      - "-B"
+      - "-m"
+      - "backend.app.application.use_cases.phase05.streaming_consumer"
+      - "--bootstrap-servers"
+      - "kafka:9092"
+      - "--redis-host"
+      - "redis"
+      - "--redis-port"
+      - "6379"
+      - "--artifacts-dir"
+      - "/app/data/models/phase04"
+      - "--flush-every-event"
+      - "--group-id"
+      - "recommendation-processor-demo"
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ../../data:/app/data:ro
+    restart: unless-stopped
     logging: *default-logging
 
   prometheus:

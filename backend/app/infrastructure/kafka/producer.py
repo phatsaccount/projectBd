@@ -36,6 +36,7 @@ class EventProducer:
         
         self.topic = topic
         self.bootstrap_servers = bootstrap_servers
+        self.timeout_seconds = max(timeout_ms / 1000, 1)
         self.producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers.split(","),
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
@@ -63,14 +64,20 @@ class EventProducer:
                 "published_at": int(datetime.utcnow().timestamp()),
             }
             
-            # Publish asynchronously
+            # Publish and wait for broker acknowledgement. This keeps the API
+            # response honest for demos: "accepted" means Kafka actually stored
+            # the event, not just that it was queued locally.
             future = self.producer.send(self.topic, value=payload)
-            
-            # Add callback for error handling
-            future.add_errback(self._on_send_error)
-            future.add_callback(self._on_send_success)
-            
-            logger.debug(f"Event published: event_id={event_id}, user_id={event_data.get('user_id')}")
+            record_metadata = future.get(timeout=self.timeout_seconds)
+
+            logger.info(
+                "Event published: event_id=%s, user_id=%s, topic=%s, partition=%s, offset=%s",
+                event_id,
+                event_data.get("user_id"),
+                record_metadata.topic,
+                record_metadata.partition,
+                record_metadata.offset,
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to publish event {event_id}: {str(e)}")

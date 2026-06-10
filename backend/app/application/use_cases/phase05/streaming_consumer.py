@@ -71,6 +71,8 @@ class EventStreamingConsumer:
         topic: str = "user-events",
         group_id: str = "recommendation-processor",
         artifacts_dir: Optional[Path] = None,
+        window_duration_seconds: int = 300,
+        flush_every_event: bool = False,
     ):
         """Initialize streaming consumer.
         
@@ -86,6 +88,8 @@ class EventStreamingConsumer:
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
         self.group_id = group_id
+        self.window_duration_seconds = window_duration_seconds
+        self.flush_every_event = flush_every_event
         
         # Initialize artifact loader
         if artifacts_dir is None:
@@ -109,7 +113,9 @@ class EventStreamingConsumer:
         logger.info(
             f"EventStreamingConsumer initialized: "
             f"topic={topic}, bootstrap_servers={bootstrap_servers}, "
-            f"artifacts_dir={artifacts_dir}"
+            f"artifacts_dir={artifacts_dir}, "
+            f"window_duration_seconds={window_duration_seconds}, "
+            f"flush_every_event={flush_every_event}"
         )
     
     def initialize_redis(self, redis_host: str = "localhost", redis_port: int = 6379) -> None:
@@ -163,39 +169,63 @@ class EventStreamingConsumer:
             
             logger.info(f"Kafka consumer started: topic={self.topic}, group={self.group_id}")
             
-            # Consume events
+            # Consume events. Polling with a timeout lets the window flush even
+            # when no new messages arrive after the first event.
             event_count = 0
+            events_since_flush = 0
             event_window: Dict[int, List[Dict]] = defaultdict(list)
             window_start_time = time.time()
-            window_duration = 300  # 5 minutes
-            
-            for message in self.consumer:
+
+            def flush_window(reason: str) -> None:
+                nonlocal events_since_flush, window_start_time
+                if not event_window:
+                    return
+                total_events = sum(len(events) for events in event_window.values())
+                logger.info(
+                    "Flushing event window: reason=%s, users=%s, events=%s",
+                    reason,
+                    len(event_window),
+                    total_events,
+                )
+                self._process_event_window(event_window, artifacts)
+                event_window.clear()
+                events_since_flush = 0
+                window_start_time = time.time()
+
+            while True:
                 try:
-                    event_data = message.value
-                    user_id = event_data.get("user_id")
-                    
-                    # Record event
-                    self.metrics.record_event(user_id, event_data)
-                    event_window[user_id].append(event_data)
-                    event_count += 1
-                    
-                    # Log progress
-                    if event_count % 100 == 0:
-                        stats = self.metrics.get_stats()
-                        logger.info(f"Processed {event_count} events: {stats}")
-                    
-                    # Check if window should flush
+                    records = self.consumer.poll(timeout_ms=1000, max_records=100)
+                    for partition_records in records.values():
+                        for message in partition_records:
+                            event_data = message.value
+                            user_id = event_data.get("user_id")
+
+                            # Record event
+                            self.metrics.record_event(user_id, event_data)
+                            event_window[user_id].append(event_data)
+                            event_count += 1
+                            events_since_flush += 1
+
+                            # Log progress
+                            if event_count % 100 == 0:
+                                stats = self.metrics.get_stats()
+                                logger.info(f"Processed {event_count} events: {stats}")
+
+                    # Check if window should flush, even when this poll received
+                    # no messages.
                     elapsed = time.time() - window_start_time
-                    if elapsed >= window_duration or event_count >= 1000:
-                        self._process_event_window(event_window, artifacts)
-                        event_window.clear()
-                        window_start_time = time.time()
-                    
+                    if self.flush_every_event and events_since_flush > 0:
+                        flush_window("flush-every-event")
+                    elif events_since_flush >= 1000:
+                        flush_window("batch-size")
+                    elif elapsed >= self.window_duration_seconds:
+                        flush_window("window-timeout")
+
                     # Check max events limit
                     if max_events and event_count >= max_events:
                         logger.info(f"Reached max events ({max_events}), stopping")
                         break
-                    
+
                 except Exception as e:
                     logger.error(f"Error processing event: {e}")
                     self.metrics.record_error()
@@ -261,7 +291,7 @@ class EventStreamingConsumer:
                     
                     if success:
                         self.metrics.record_recommendation_update()
-                        logger.debug(f"Updated recommendations for user {user_id}: {len(candidates)} candidates")
+                        logger.info(f"Updated recommendations for user {user_id}: {len(candidates)} candidates")
                 
             except Exception as e:
                 logger.error(f"Error processing events for user {user_id}: {e}")
@@ -320,6 +350,17 @@ def main():
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
     parser.add_argument("--artifacts-dir", help="Path to Phase 4 artifacts")
     parser.add_argument("--max-events", type=int, help="Max events to process (for testing)")
+    parser.add_argument(
+        "--window-seconds",
+        type=int,
+        default=300,
+        help="Seconds to buffer events before refreshing Redis recommendations",
+    )
+    parser.add_argument(
+        "--flush-every-event",
+        action="store_true",
+        help="Refresh Redis recommendations after every consumed event (useful for demos)",
+    )
     
     args = parser.parse_args()
     
@@ -337,6 +378,8 @@ def main():
             topic=args.topic,
             group_id=args.group_id,
             artifacts_dir=artifacts_dir,
+            window_duration_seconds=args.window_seconds,
+            flush_every_event=args.flush_every_event,
         )
         
         # Initialize Redis
